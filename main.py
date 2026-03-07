@@ -31,20 +31,20 @@ def receive_data(data: SensorData):
 
     # Run ML model
     result = process_sensor_data(
-        data.voltage,
-        data.current,
-        data.power,
-        data.power_factor
+        data.Voltage,
+        data.Current,
+        data.Power,
+        data.Power_Factor
     )
 
     # Insert into Supabase
     query = text("""
         INSERT INTO energy_data(
             datetime,
-            voltage,
-            current,
-            power,
-            power_factor,
+            Voltage,
+            Current,
+            Power,
+            Power_Factor,
             power_smooth,
             delta_power,
             rolling_mean,
@@ -56,10 +56,10 @@ def receive_data(data: SensorData):
         )
         VALUES(
             :datetime,
-            :voltage,
-            :current,
-            :power,
-            :power_factor,
+            :Voltage,
+            :Current,
+            :Power,
+            :Power_Factor,
             :power_smooth,
             :delta_power,
             :rolling_mean,
@@ -75,10 +75,10 @@ def receive_data(data: SensorData):
 
         conn.execute(query, {
             "datetime": data.datetime,
-            "voltage": data.voltage,
-            "current": data.current,
-            "power": data.power,
-            "power_factor": data.power_factor,
+            "Voltage": data.Voltage,
+            "Current": data.Current,
+            "Power": data.Power,
+            "Power_Factor": data.Power_Factor,
             "power_smooth": result["power_smooth"],
             "delta_power": result["delta_power"],
             "rolling_mean": result["rolling_mean"],
