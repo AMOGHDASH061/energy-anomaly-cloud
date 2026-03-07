@@ -3,9 +3,9 @@ import joblib
 from collections import deque
 
 # Load ML components
-model = joblib.load("model_2.pkl")
-scaler = joblib.load("scaler_2.pkl")
-delta_threshold = joblib.load("delta_threshold_2.pkl")
+model = joblib.load("model_4.pkl")
+scaler = joblib.load("scaler_4.pkl")
+delta_threshold = joblib.load("delta_threshold_4.pkl")
 
 WINDOW_SIZE = 10
 power_window = deque(maxlen=WINDOW_SIZE)
