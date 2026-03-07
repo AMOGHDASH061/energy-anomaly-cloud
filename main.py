@@ -75,10 +75,10 @@ def receive_data(data: SensorData):
 
         conn.execute(query, {
             "datetime": data.datetime,
-            "voltage": data.Voltage,
-            "current": data.Current,
-            "power": data.Power,
-            "power_factor": data.Power_Factor,
+            "voltage": data.voltage,
+            "current": data.current,
+            "power": data.power,
+            "power_factor": data.power_factor,
             "power_smooth": result["power_smooth"],
             "delta_power": result["delta_power"],
             "rolling_mean": result["rolling_mean"],
