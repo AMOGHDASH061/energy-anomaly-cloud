@@ -15,7 +15,8 @@ engine = create_engine(DATABASE_URL)
 
 class SensorData(BaseModel):
 
-    datetime: str
+    date: str
+    time: str
     voltage: float
     current: float
     power: float
