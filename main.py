@@ -21,9 +21,11 @@ engine = create_engine(DATABASE_URL)
 # LOAD ML COMPONENTS
 # -----------------------------
 
-model = joblib.load("model.pkl")
-scaler = joblib.load("scaler.pkl")
-delta_threshold = joblib.load("delta_threshold.pkl")
+model = joblib.load("model_2.pkl")
+scaler = joblib.load("scaler_2.pkl")
+delta_threshold = joblib.load("delta_threshold_2.pkl")
+hourly_baseline = joblib.load("hourly_baseline_2.pkl")
+frozen_baseline = joblib.load("frozen_baseline_2.pkl")
 
 # -----------------------------
 # FASTAPI APP
