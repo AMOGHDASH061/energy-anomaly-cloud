@@ -18,7 +18,7 @@ class SensorData(BaseModel):
     voltage: float
     current: float
     power: float
-    power_factor: float
+    powerfactor: float
 
 
 @app.get("/")
@@ -59,7 +59,7 @@ def receive_data(data: SensorData):
             :voltage,
             :current,
             :power,
-            :power_factor,
+            :powerfactor,
             :power_smooth,
             :delta_power,
             :rolling_mean,
@@ -78,7 +78,7 @@ def receive_data(data: SensorData):
             "voltage": data.voltage,
             "current": data.current,
             "power": data.power,
-            "power_factor": data.power_factor,
+            "powerfactor": data.powerfactor,
             "power_smooth": result["power_smooth"],
             "delta_power": result["delta_power"],
             "rolling_mean": result["rolling_mean"],
