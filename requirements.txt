@@ -7,3 +7,5 @@ scikit-learn
 psycopg2-binary
 python-dotenv
 SQLAlchemy
+requests
+pydantic-settings
