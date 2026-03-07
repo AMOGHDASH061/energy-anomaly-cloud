@@ -37,11 +37,12 @@ app = FastAPI(title="Energy Audit AI API")
 
 class SensorData(BaseModel):
 
-    datetime: str
-    voltage: float
-    current: float
-    power: float
-    power_factor: float
+    Date: str
+    Time: str
+    Voltage: float
+    Current: float
+    Power: float
+    Power_Factor: float
 
 # -----------------------------
 # SLIDING WINDOW STATE
@@ -69,16 +70,16 @@ def receive_data(data: SensorData):
 
     global last_power
 
-    voltage = data.voltage
-    current = data.current
-    power = data.power
-    pf = data.power_factor
+    voltage = data.Voltage
+    current = data.Current
+    power = data.Power
+    pf = data.Power_Factor
 
     # -----------------------------
     # FEATURE ENGINEERING
     # -----------------------------
 
-    normalized_power = power * (230 / voltage)
+    normalized_power = Power * (230 / Voltage)
 
     power_window.append(normalized_power)
 
@@ -131,10 +132,10 @@ def receive_data(data: SensorData):
     query = text("""
         INSERT INTO energy_data(
             datetime,
-            voltage,
-            current,
-            power,
-            power_factor,
+            Voltage,
+            Current,
+            Power,
+            Power_Factor,
             power_smooth,
             delta_power,
             rolling_mean,
@@ -146,10 +147,10 @@ def receive_data(data: SensorData):
         )
         VALUES(
             :datetime,
-            :voltage,
-            :current,
-            :power,
-            :power_factor,
+            :Voltage,
+            :Current,
+            :Power,
+            :Power_Factor,
             :power_smooth,
             :delta_power,
             :rolling_mean,
@@ -165,10 +166,10 @@ def receive_data(data: SensorData):
 
         conn.execute(query, {
             "datetime": data.datetime,
-            "voltage": voltage,
-            "current": current,
-            "power": power,
-            "power_factor": pf,
+            "Voltage": Voltage,
+            "Current": Current,
+            "Power": Power,
+            "Power_Factor": pf,
             "power_smooth": power_smooth,
             "delta_power": delta_power,
             "rolling_mean": rolling_mean,
