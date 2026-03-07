@@ -13,12 +13,12 @@ power_window = deque(maxlen=WINDOW_SIZE)
 last_power = None
 
 
-def process_sensor_data(voltage, current, power, power_factor):
+def process_sensor_data(Voltage, Current, Power, Power_Factor):
 
     global last_power
 
     # Voltage normalization
-    normalized_power = power * (230 / voltage)
+    normalized_power = power * (230 / Voltage)
 
     power_window.append(normalized_power)
 
@@ -45,8 +45,8 @@ def process_sensor_data(voltage, current, power, power_factor):
         delta_power,
         rolling_mean,
         rolling_std,
-        current,
-        power_factor
+        Current,
+        Power_Factor
     ]]
 
     X_test = scaler.transform(features)
