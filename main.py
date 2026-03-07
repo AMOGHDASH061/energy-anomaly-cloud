@@ -1,78 +1,187 @@
-# ------------------ Imports ------------------
 from fastapi import FastAPI
+from pydantic import BaseModel
+from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
 import numpy as np
 import joblib
+import os
 from collections import deque
 
-from dotenv import load_dotenv
-import os
+# -----------------------------
+# LOAD ENV VARIABLES
+# -----------------------------
 
-from sqlalchemy import create_engine, Column, Integer, Float, DateTime
-from sqlalchemy.orm import sessionmaker, declarative_base
-from datetime import datetime
-
-# ------------------ Load ENV ------------------
 load_dotenv()
+
 DATABASE_URL = os.getenv("DATABASE_URL")
-print("DATABASE_URL =", DATABASE_URL)
 
-# ------------------ DB Setup (Step 4.3) ------------------
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
 
-# ------------------ DB Table (Step 4.4) ------------------
-class EnergyData(Base):
-    __tablename__ = "energy_readings"
+# -----------------------------
+# LOAD ML COMPONENTS
+# -----------------------------
 
-    id = Column(Integer, primary_key=True, index=True)
-    voltage = Column(Float)
-    current = Column(Float)
-    power = Column(Float)
-    anomaly = Column(Integer)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-
-# Create table in Supabase
-Base.metadata.create_all(bind=engine)
-
-# ------------------ FastAPI ------------------
-app = FastAPI()
-
-# Load ML model
 model = joblib.load("model.pkl")
+scaler = joblib.load("scaler.pkl")
+delta_threshold = joblib.load("delta_threshold.pkl")
 
-# ------------------ API Endpoint ------------------
+# -----------------------------
+# FASTAPI APP
+# -----------------------------
+
+app = FastAPI(title="Energy Audit AI API")
+
+# -----------------------------
+# INPUT SCHEMA (ESP32)
+# -----------------------------
+
+class SensorData(BaseModel):
+
+    datetime: str
+    voltage: float
+    current: float
+    power: float
+    power_factor: float
+
+# -----------------------------
+# SLIDING WINDOW STATE
+# -----------------------------
+
 WINDOW_SIZE = 10
 power_window = deque(maxlen=WINDOW_SIZE)
 
-@app.post("/predict")
-def predict(data: dict):
-    voltage = data["voltage"]
-    current = data["current"]
-    power = data["power"]
-    timestamp = data["timestamp"]
+last_power = None
 
-    # -------- Feature Engineering --------
-    if len(power_window) == 0:
-        delta_w = 0.0
+# -----------------------------
+# HOME ENDPOINT
+# -----------------------------
+
+@app.get("/")
+def home():
+    return {"status": "Energy AI API running"}
+
+# -----------------------------
+# SENSOR DATA ENDPOINT
+# -----------------------------
+
+@app.post("/sensor-data")
+def receive_data(data: SensorData):
+
+    global last_power
+
+    voltage = data.voltage
+    current = data.current
+    power = data.power
+    pf = data.power_factor
+
+    # -----------------------------
+    # FEATURE ENGINEERING
+    # -----------------------------
+
+    normalized_power = power * (230 / voltage)
+
+    power_window.append(normalized_power)
+
+    power_smooth = np.median(list(power_window)[-2:]) if len(power_window) >= 2 else normalized_power
+
+    if last_power is None:
+        delta_power = 0
     else:
-        delta_w = power - power_window[-1]
+        delta_power = power_smooth - last_power
 
-    power_window.append(power)
+    last_power = power_smooth
 
     rolling_mean = np.mean(power_window)
+
     rolling_std = np.std(power_window)
 
-    # -------- ML Feature Vector (ORDER MATTERS) --------
-    X = np.array([[power, delta_w, rolling_mean, rolling_std]])
+    # -----------------------------
+    # ML MODEL INPUT
+    # -----------------------------
 
-    prediction = int(model.predict(X)[0])   # -1 or 1
-    anomaly = 1 if prediction == -1 else 0
+    features = [[
+        power_smooth,
+        delta_power,
+        rolling_mean,
+        rolling_std,
+        current,
+        pf
+    ]]
+
+    X_test = scaler.transform(features)
+
+    score = model.decision_function(X_test)[0]
+
+    pred = model.predict(X_test)[0]
+
+    ml_anomaly = 1 if pred == -1 else 0
+
+    # -----------------------------
+    # POWER JUMP DETECTION
+    # -----------------------------
+
+    power_jump = 1 if abs(delta_power) > delta_threshold else 0
+
+    anomaly_detected = 1 if (ml_anomaly or power_jump) else 0
+
+    # -----------------------------
+    # STORE TO SUPABASE
+    # -----------------------------
+
+    query = text("""
+        INSERT INTO energy_data(
+            datetime,
+            voltage,
+            current,
+            power,
+            power_factor,
+            power_smooth,
+            delta_power,
+            rolling_mean,
+            rolling_std,
+            anomaly_score,
+            ml_anomaly,
+            power_jump,
+            anomaly_detected
+        )
+        VALUES(
+            :datetime,
+            :voltage,
+            :current,
+            :power,
+            :power_factor,
+            :power_smooth,
+            :delta_power,
+            :rolling_mean,
+            :rolling_std,
+            :anomaly_score,
+            :ml_anomaly,
+            :power_jump,
+            :anomaly_detected
+        )
+    """)
+
+    with engine.connect() as conn:
+
+        conn.execute(query, {
+            "datetime": data.datetime,
+            "voltage": voltage,
+            "current": current,
+            "power": power,
+            "power_factor": pf,
+            "power_smooth": power_smooth,
+            "delta_power": delta_power,
+            "rolling_mean": rolling_mean,
+            "rolling_std": rolling_std,
+            "anomaly_score": float(score),
+            "ml_anomaly": ml_anomaly,
+            "power_jump": power_jump,
+            "anomaly_detected": anomaly_detected
+        })
+
+        conn.commit()
 
     return {
-        "timestamp": timestamp,
-        "voltage": voltage,
-        "current": current,
-        "power": power,
-        "anomaly": anomaly
+        "status": "stored",
+        "anomaly": anomaly_detected
     }
